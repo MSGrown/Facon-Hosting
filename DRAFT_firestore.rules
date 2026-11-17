@@ -1,0 +1,296 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global Hardened Primitives
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return isVerified() && (
+        request.auth.token.email == 'sadhikmohammad292@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // Validation Helpers
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'displayName', 'email', 'role', 'plan', 'suspended', 'serverLimit', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'displayName', 'email', 'photoURL', 'role', 'plan', 'suspended', 'serverLimit', 'createdAt', 'updatedAt'])
+        && isValidId(data.uid)
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 160
+        && (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 512))
+        && data.role in ['user', 'admin']
+        && data.plan == 'FREE'
+        && data.suspended is bool
+        && data.serverLimit is int && data.serverLimit >= 1 && data.serverLimit <= 20
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAdminRecord(data) {
+      return data.keys().hasAll(['uid', 'email', 'createdAt'])
+        && data.keys().hasOnly(['uid', 'email', 'grantedBy', 'createdAt'])
+        && isValidId(data.uid)
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 160
+        && (!('grantedBy' in data) || (data.grantedBy is string && data.grantedBy.size() <= 128))
+        && data.createdAt is timestamp;
+    }
+
+    function isValidServer(data) {
+      return data.keys().hasAll([
+          'id', 'ownerId', 'ownerEmail', 'name', 'runtime', 'appType', 'nodeRegion',
+          'status', 'startupCommand', 'autoRestart', 'plan', 'ramLimitMb', 'cpuLimitPct',
+          'diskLimitMb', 'bandwidthMbps', 'backupLimit', 'cpuUsage', 'ramUsageMb',
+          'diskUsageMb', 'networkMbps', 'uptimeSeconds', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'ownerId', 'ownerEmail', 'name', 'runtime', 'appType', 'nodeRegion',
+          'status', 'startupCommand', 'autoRestart', 'plan', 'ramLimitMb', 'cpuLimitPct',
+          'diskLimitMb', 'bandwidthMbps', 'backupLimit', 'cpuUsage', 'ramUsageMb',
+          'diskUsageMb', 'networkMbps', 'uptimeSeconds', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && isValidId(data.ownerId)
+        && data.ownerEmail is string && data.ownerEmail.size() >= 3 && data.ownerEmail.size() <= 160
+        && data.name is string && data.name.size() >= 2 && data.name.size() <= 48
+        && data.runtime in ['Python', 'Java', 'Node.js', 'JavaScript', 'TypeScript', 'C', 'C++', 'Go', 'Rust']
+        && data.appType in ['Discord Bot', 'Telegram Bot', 'WhatsApp Bot', 'Custom Application']
+        && data.nodeRegion in ['us-east-1', 'eu-central-1', 'ap-southeast-1']
+        && data.status in ['running', 'stopped', 'starting', 'restarting', 'suspended']
+        && data.startupCommand is string && data.startupCommand.size() >= 1 && data.startupCommand.size() <= 256
+        && data.autoRestart is bool
+        && data.plan == 'FREE'
+        && data.ramLimitMb == 2048
+        && data.cpuLimitPct == 200
+        && data.diskLimitMb == 8192
+        && data.bandwidthMbps == 150
+        && data.backupLimit == 2
+        && data.cpuUsage is number && data.cpuUsage >= 0 && data.cpuUsage <= 200
+        && data.ramUsageMb is number && data.ramUsageMb >= 0 && data.ramUsageMb <= 2048
+        && data.diskUsageMb is number && data.diskUsageMb >= 0 && data.diskUsageMb <= 8192
+        && data.networkMbps is number && data.networkMbps >= 0 && data.networkMbps <= 150
+        && data.uptimeSeconds is number && data.uptimeSeconds >= 0 && data.uptimeSeconds <= 1000000000
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidServerFile(data) {
+      return data.keys().hasAll(['name', 'path', 'sizeBytes', 'mimeType', 'content', 'isDirectory', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['name', 'path', 'sizeBytes', 'mimeType', 'content', 'isDirectory', 'createdAt', 'updatedAt'])
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 120
+        && data.path is string && data.path.size() >= 1 && data.path.size() <= 256
+        && data.sizeBytes is number && data.sizeBytes >= 0 && data.sizeBytes <= 10485760
+        && data.mimeType is string && data.mimeType.size() >= 1 && data.mimeType.size() <= 80
+        && data.content is string && data.content.size() <= 65536
+        && data.isDirectory is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidEnvVar(data) {
+      return data.keys().hasAll(['key', 'value', 'isSecret', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['key', 'value', 'isSecret', 'createdAt', 'updatedAt'])
+        && data.key is string && data.key.size() >= 1 && data.key.size() <= 64 && data.key.matches('^[A-Z_][A-Z0-9_]*$')
+        && data.value is string && data.value.size() <= 2048
+        && data.isSecret is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidBackup(data) {
+      return data.keys().hasAll(['name', 'note', 'sizeMb', 'fileCount', 'status', 'createdAt'])
+        && data.keys().hasOnly(['name', 'note', 'sizeMb', 'fileCount', 'status', 'createdAt'])
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 80
+        && data.note is string && data.note.size() <= 200
+        && data.sizeMb is number && data.sizeMb >= 0 && data.sizeMb <= 8192
+        && data.fileCount is int && data.fileCount >= 0 && data.fileCount <= 50000
+        && data.status in ['completed', 'creating', 'restoring']
+        && data.createdAt is timestamp;
+    }
+
+    function isValidLog(data) {
+      return data.keys().hasAll(['level', 'message', 'createdAt'])
+        && data.keys().hasOnly(['level', 'message', 'createdAt'])
+        && data.level in ['info', 'warn', 'error', 'cmd', 'system']
+        && data.message is string && data.message.size() >= 1 && data.message.size() <= 1000
+        && data.createdAt is timestamp;
+    }
+
+    // Master Gate helpers for server subcollections
+    function isServerOwnerOrAdmin(serverId) {
+      let server = get(/databases/$(database)/documents/servers/$(serverId)).data;
+      return isSignedIn() && (server.ownerId == request.auth.uid || isAdmin());
+    }
+
+    function canModifyServerResources(serverId) {
+      let server = get(/databases/$(database)/documents/servers/$(serverId)).data;
+      return isVerified() && (
+        isAdmin() ||
+        (server.ownerId == request.auth.uid && server.status != 'suspended')
+      );
+    }
+
+    // /users/{userId}
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isVerified()
+        && isValidId(userId)
+        && isValidUser(incoming())
+        && isOwner(userId)
+        && incoming().uid == userId
+        && incoming().role == 'user'
+        && incoming().plan == 'FREE'
+        && incoming().suspended == false
+        && incoming().serverLimit == 5
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerified()
+        && isValidId(userId)
+        && isValidUser(incoming())
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() ||
+          (
+            isOwner(userId)
+            && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'updatedAt'])
+            && incoming().role == existing().role
+            && incoming().plan == existing().plan
+            && incoming().suspended == existing().suspended
+            && incoming().serverLimit == existing().serverLimit
+          )
+        );
+      allow delete: if isAdmin() && isValidId(userId);
+    }
+
+    // /admins/{adminUid}
+    match /admins/{adminUid} {
+      allow get: if isSignedIn() && isValidId(adminUid) && (isOwner(adminUid) || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isAdmin()
+        && isValidId(adminUid)
+        && isValidAdminRecord(incoming())
+        && incoming().uid == adminUid
+        && incoming().createdAt == request.time;
+      allow update: if isAdmin()
+        && isValidId(adminUid)
+        && isValidAdminRecord(incoming())
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt;
+      allow delete: if isAdmin() && isValidId(adminUid);
+    }
+
+    // /servers/{serverId}
+    match /servers/{serverId} {
+      allow get: if isSignedIn() && isValidId(serverId) && (existing().ownerId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.ownerId == request.auth.uid || isAdmin());
+      allow create: if isVerified()
+        && isValidId(serverId)
+        && isValidServer(incoming())
+        && incoming().id == serverId
+        && incoming().ownerId == request.auth.uid
+        && incoming().status != 'suspended'
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerified()
+        && isValidId(serverId)
+        && isValidServer(incoming())
+        && incoming().id == existing().id
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() ||
+          (
+            existing().ownerId == request.auth.uid
+            && existing().status != 'suspended'
+            && incoming().status != 'suspended'
+            && (
+              incoming().diff(existing()).affectedKeys().hasOnly(['status', 'cpuUsage', 'ramUsageMb', 'diskUsageMb', 'networkMbps', 'uptimeSeconds', 'updatedAt']) ||
+              incoming().diff(existing()).affectedKeys().hasOnly(['startupCommand', 'autoRestart', 'name', 'updatedAt'])
+            )
+          )
+        );
+      allow delete: if isVerified() && isValidId(serverId) && (existing().ownerId == request.auth.uid || isAdmin());
+
+      // /servers/{serverId}/files/{fileId}
+      match /files/{fileId} {
+        allow get, list: if isValidId(serverId) && isServerOwnerOrAdmin(serverId);
+        allow create: if isValidId(serverId) && isValidId(fileId) && isValidServerFile(incoming())
+          && incoming().createdAt == request.time && incoming().updatedAt == request.time
+          && canModifyServerResources(serverId);
+        allow update: if isValidId(serverId) && isValidId(fileId) && isValidServerFile(incoming())
+          && incoming().createdAt == existing().createdAt && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'path', 'sizeBytes', 'mimeType', 'content', 'updatedAt'])
+          && canModifyServerResources(serverId);
+        allow delete: if isValidId(serverId) && isValidId(fileId) && canModifyServerResources(serverId);
+      }
+
+      // /servers/{serverId}/envVars/{envId}
+      match /envVars/{envId} {
+        allow get, list: if isValidId(serverId) && isServerOwnerOrAdmin(serverId);
+        allow create: if isValidId(serverId) && isValidId(envId) && isValidEnvVar(incoming())
+          && incoming().createdAt == request.time && incoming().updatedAt == request.time
+          && canModifyServerResources(serverId);
+        allow update: if isValidId(serverId) && isValidId(envId) && isValidEnvVar(incoming())
+          && incoming().createdAt == existing().createdAt && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['key', 'value', 'isSecret', 'updatedAt'])
+          && canModifyServerResources(serverId);
+        allow delete: if isValidId(serverId) && isValidId(envId) && canModifyServerResources(serverId);
+      }
+
+      // /servers/{serverId}/backups/{backupId}
+      match /backups/{backupId} {
+        allow get, list: if isValidId(serverId) && isServerOwnerOrAdmin(serverId);
+        allow create: if isValidId(serverId) && isValidId(backupId) && isValidBackup(incoming())
+          && incoming().createdAt == request.time
+          && canModifyServerResources(serverId);
+        allow update: if isValidId(serverId) && isValidId(backupId) && isValidBackup(incoming())
+          && incoming().createdAt == existing().createdAt
+          && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'note'])
+          && canModifyServerResources(serverId);
+        allow delete: if isValidId(serverId) && isValidId(backupId) && canModifyServerResources(serverId);
+      }
+
+      // /servers/{serverId}/logs/{logId}
+      match /logs/{logId} {
+        allow get, list: if isValidId(serverId) && isServerOwnerOrAdmin(serverId);
+        allow create: if isValidId(serverId) && isValidId(logId) && isValidLog(incoming())
+          && incoming().createdAt == request.time
+          && canModifyServerResources(serverId);
+        allow delete: if isValidId(serverId) && isValidId(logId) && canModifyServerResources(serverId);
+      }
+    }
+  }
+}

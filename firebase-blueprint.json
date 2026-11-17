@@ -1,0 +1,185 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "FACON HOST user account profile and quota metadata.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "email": { "type": "string", "format": "email", "maxLength": 160 },
+        "photoURL": { "type": "string", "maxLength": 512 },
+        "role": { "type": "string", "enum": ["user", "admin"] },
+        "plan": { "type": "string", "enum": ["FREE"] },
+        "suspended": { "type": "boolean" },
+        "serverLimit": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "email", "role", "plan", "suspended", "serverLimit", "createdAt", "updatedAt"]
+    },
+    "AdminRecord": {
+      "title": "AdminRecord",
+      "description": "Explicit registry of platform administrator UIDs.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "format": "email", "maxLength": 160 },
+        "grantedBy": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "createdAt"]
+    },
+    "BotServer": {
+      "title": "BotServer",
+      "description": "Free-tier cloud bot or custom application server instance.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerEmail": { "type": "string", "format": "email", "maxLength": 160 },
+        "name": { "type": "string", "minLength": 2, "maxLength": 48 },
+        "runtime": {
+          "type": "string",
+          "enum": ["Python", "Java", "Node.js", "JavaScript", "TypeScript", "C", "C++", "Go", "Rust"]
+        },
+        "appType": {
+          "type": "string",
+          "enum": ["Discord Bot", "Telegram Bot", "WhatsApp Bot", "Custom Application"]
+        },
+        "nodeRegion": {
+          "type": "string",
+          "enum": ["us-east-1", "eu-central-1", "ap-southeast-1"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["running", "stopped", "starting", "restarting", "suspended"]
+        },
+        "startupCommand": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "autoRestart": { "type": "boolean" },
+        "plan": { "type": "string", "enum": ["FREE"] },
+        "ramLimitMb": { "type": "number" },
+        "cpuLimitPct": { "type": "number" },
+        "diskLimitMb": { "type": "number" },
+        "bandwidthMbps": { "type": "number" },
+        "backupLimit": { "type": "number" },
+        "cpuUsage": { "type": "number" },
+        "ramUsageMb": { "type": "number" },
+        "diskUsageMb": { "type": "number" },
+        "networkMbps": { "type": "number" },
+        "uptimeSeconds": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "ownerId",
+        "ownerEmail",
+        "name",
+        "runtime",
+        "appType",
+        "nodeRegion",
+        "status",
+        "startupCommand",
+        "autoRestart",
+        "plan",
+        "ramLimitMb",
+        "cpuLimitPct",
+        "diskLimitMb",
+        "bandwidthMbps",
+        "backupLimit",
+        "cpuUsage",
+        "ramUsageMb",
+        "diskUsageMb",
+        "networkMbps",
+        "uptimeSeconds",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ServerFile": {
+      "title": "ServerFile",
+      "description": "File entry stored inside a bot server workspace.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "path": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "sizeBytes": { "type": "number" },
+        "mimeType": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "content": { "type": "string", "maxLength": 65536 },
+        "isDirectory": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "path", "sizeBytes", "mimeType", "content", "isDirectory", "createdAt", "updatedAt"]
+    },
+    "ServerEnvVar": {
+      "title": "ServerEnvVar",
+      "description": "Environment variable configured for a bot server runtime.",
+      "type": "object",
+      "properties": {
+        "key": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Z_][A-Z0-9_]*$" },
+        "value": { "type": "string", "maxLength": 2048 },
+        "isSecret": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["key", "value", "isSecret", "createdAt", "updatedAt"]
+    },
+    "ServerBackup": {
+      "title": "ServerBackup",
+      "description": "Snapshot backup of a bot server workspace (max 5 per FREE server).",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "note": { "type": "string", "maxLength": 200 },
+        "sizeMb": { "type": "number" },
+        "fileCount": { "type": "number" },
+        "status": { "type": "string", "enum": ["completed", "creating", "restoring"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "note", "sizeMb", "fileCount", "status", "createdAt"]
+    },
+    "ServerLog": {
+      "title": "ServerLog",
+      "description": "Console output line or command entry for a bot server.",
+      "type": "object",
+      "properties": {
+        "level": { "type": "string", "enum": ["info", "warn", "error", "cmd", "system"] },
+        "message": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["level", "message", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Authenticated user account profiles (owner and admin read access only)."
+    },
+    "/admins/{adminUid}": {
+      "schema": { "$ref": "#/entities/AdminRecord" },
+      "description": "Trusted administrator lookup table."
+    },
+    "/servers/{serverId}": {
+      "schema": { "$ref": "#/entities/BotServer" },
+      "description": "Hosted bot and application servers owned by users."
+    },
+    "/servers/{serverId}/files/{fileId}": {
+      "schema": { "$ref": "#/entities/ServerFile" },
+      "description": "Workspace files belonging to a hosted server."
+    },
+    "/servers/{serverId}/envVars/{envId}": {
+      "schema": { "$ref": "#/entities/ServerEnvVar" },
+      "description": "Runtime environment variables belonging to a hosted server."
+    },
+    "/servers/{serverId}/backups/{backupId}": {
+      "schema": { "$ref": "#/entities/ServerBackup" },
+      "description": "Workspace snapshot backups belonging to a hosted server."
+    },
+    "/servers/{serverId}/logs/{logId}": {
+      "schema": { "$ref": "#/entities/ServerLog" },
+      "description": "Console stream logs belonging to a hosted server."
+    }
+  }
+}

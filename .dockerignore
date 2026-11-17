@@ -1,0 +1,7 @@
+node_modules
+dist
+.facon_workspaces
+.facon_runtime
+.git
+.env
+npm-debug.log*
